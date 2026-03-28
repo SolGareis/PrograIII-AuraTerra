@@ -24,7 +24,7 @@ Pruebas en otros entornos: Solo se probó en Windows con XAMPP; falta verificar 
 🚧 Bloqueo
 Configuración de Apache (mod_rewrite): Me trabó bastante entender por qué el servidor ignoraba el archivo .htaccess al principio 
 
-![Captura de pantalla de la Home](imagenes/AgroSense_public.jpeg)
-![Captura de pantalla de la Home](imagenes/AgroSense_loquesea.jpeg)
-![Captura de pantalla de la Home](imagenes/AgroSense_health.jpeg)
-![Captura de pantalla de la Home](imagenes/CommitGit.png)
+![Captura de pantalla de la Home](Imagenes/AgroSense_public.jpeg)
+![Captura de pantalla de la Home](Imagenes/AgroSense_loquesea.jpeg)
+![Captura de pantalla de la Home](Imagenes/AgroSense_health.jpeg)
+![Captura de pantalla de la Home](Imagenes/CommitGit.png)
