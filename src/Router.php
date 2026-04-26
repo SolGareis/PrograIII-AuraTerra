@@ -1,84 +1,93 @@
-<?php
-declare(strict_types=1);
+<?php declare(strict_types=1);
+namespace App;
+
+use App\Models\Item;
 
 class Router 
 {
     public function run() {
-        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET'; //Metodo HTTP
-        $requestUri = $_SERVER['REQUEST_URI'] ?? '/'; //URI pedida
-        $path = (string)parse_url($requestUri, PHP_URL_PATH); // Quitar query string
+        // 1. Captura de método y ruta
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+        $path = (string)parse_url($requestUri, PHP_URL_PATH);
 
-        $scriptName = $_SERVER['SCRIPT_NAME'] ?? ''; //Normalizar posibles bases
-        $scriptDir  = str_replace('\\', '/', dirname($scriptName));
-
-        if ($scriptDir !== '/' && strpos($path, $scriptDir) === 0) {
+        // 2. Limpieza de prefijos de carpeta (para localhost/AuraTerra/public/...)
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+        $scriptDir = str_replace('\\', '/', dirname($scriptName));
+        if (strpos($path, $scriptDir) === 0) {
             $path = substr($path, strlen($scriptDir));
-        } else {
-            $path = preg_replace('#^/public#', '', $path);
-        } //Si la URL contiene el directorio del script, lo quitamos
+        }
+        $path = '/' . ltrim($path, '/');
 
-        $path = '/' . ltrim((string)$path, '/'); //asegurar formato
-        if ($path === '//') { $path = '/'; }
-
-        // Ruta GET
-        if ($method === 'GET' && $path === '/health') {
-            header('Content-Type: application/json; charset=utf-8');
-            echo json_encode(['status' => 'ok', 'timestamp' => date('Y-m-d H:i:s')], JSON_PRETTY_PRINT);
+        // ---------------------------------------------------------
+        // RUTA GET /items (LISTAR REGISTROS)
+        // ---------------------------------------------------------
+        if ($method === 'GET' && ($path === '/items' || $path === '/items/')) {
+            try {
+                $items = Item::all();
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode($items, JSON_UNESCAPED_UNICODE);
+            } catch (\Exception $e) {
+                http_response_code(500);
+                header('Content-Type: application/json');
+                echo json_encode(['error' => 'Error de base de datos: ' . $e->getMessage()]);
+            }
             exit;
         }
 
-        // Ruta base opcional
-        if ($method === 'GET' && ($path === '/' || $path === '')) {
-            header('Content-Type: application/json; charset=utf-8');
-            echo json_encode(['message' => 'Bienvenido a AuraTerra.'], JSON_PRETTY_PRINT);
-            exit;
-        }
-
-        // Ruta para mostrar el formulario de items - exactamente debe decir /items
-        if ($method === 'GET' && $path === '/items/new') {
-            include __DIR__ . '/../config/views/items_form.php';
-            exit;
-        }
-
-        // Ruta POST
-        if ($method === 'POST' && $path === '/items') {
-            $name = isset($_POST['name']) ? trim($_POST['name']) : ''; // isset-pregunta si el dato existe. ? - if cortito, si eciste lo guarda sino deja texto vacio ' '
-            $qty = isset($_POST['qty']) ? trim($_POST['qty']) : ''; // trim - borra espacios vacios
+        // ---------------------------------------------------------
+        // RUTA POST /items (GUARDAR REGISTRO)
+        // ---------------------------------------------------------
+        if ($method === 'POST' && ($path === '/items' || $path === '/items/')) {
+            $name = isset($_POST['name']) ? trim($_POST['name']) : '';
+            $quantity = isset($_POST['quantity']) ? trim($_POST['quantity']) : '';
+            $errors = [];
             
-            $errors = []; //Array para acumular errores
-
+            // Validaciones (tus reglas de negocio)
             if ($name === '') {
-                $errors[] = 'El campo name es obligatorio';
+                $errors[] = "El nombre es obligatorio.";
             } elseif (strlen($name) < 3) {
-                $errors[] = 'El campo name debe tener al menos 3 caracteres';
+                $errors[] = "El nombre debe tener al menos 3 caracteres.";
             }
 
-            if ($qty === '') {
-                $errors[] = 'El campo qty es obligatorio';
-            } elseif (!ctype_digit($qty)) {
-                $errors[] = 'El campo qty debe ser un número entero';
-            } elseif ((int)$qty <= 0) {
-                $errors[] = 'El campo qty debe ser mayor que 0';
+            if (!ctype_digit($quantity) || (int)$quantity <= 0) {
+                $errors[] = "La cantidad debe ser un número entero mayor a cero.";
             }
-
-            header('Content-Type: application/json; charset=utf-8'); // Decidir respuesta según si hay errores
 
             if (count($errors) > 0) {
                 http_response_code(400);
+                header('Content-Type: application/json');
                 echo json_encode(['ok' => false, 'errors' => $errors], JSON_UNESCAPED_UNICODE);
             } else {
-                http_response_code(201);
-                echo json_encode([
-                    'ok' => true,
-                    'item' => ['name' => $name, 'qty' => (int)$qty]
-                ], JSON_UNESCAPED_UNICODE);
+                $data = [
+                'name'     => $_POST['name'] ?? '',
+                'quantity' => $_POST['qty'] ?? 0,    // Usamos 'qty' que viene del POST
+                'price'    => $_POST['price'] ?? null
+                ];
+                
+                try {
+                    $item = Item::create([
+                    'name'     => $data['name'],
+                    'quantity' => $data['quantity'],
+                    'price'    => $data['price'] ?? null
+                ]);
+                    http_response_code(201);
+                    header('Content-Type: application/json');
+                    echo json_encode(['ok' => true, 'item' => $item], JSON_UNESCAPED_UNICODE);
+                } catch (\Exception $e) {
+                    http_response_code(500);
+                    echo json_encode(['error' => 'No se pudo guardar: ' . $e->getMessage()]);
+                }
             }
             exit;
         }
 
-        // 404 si nada coincidio
-        header('Content-Type: application/json; charset=utf-8');
+        // ---------------------------------------------------------
+        // RUTA 404 (SI NADA COINCIDE)
+        // ---------------------------------------------------------
         http_response_code(404);
-        echo json_encode(['error' => 'Not Found', 'path' => $path, 'method' => $method], JSON_PRETTY_PRINT);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Ruta no encontrada', 'path' => $path]);
+        exit;
     }
 }

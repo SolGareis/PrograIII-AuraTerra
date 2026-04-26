@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Item;
+
 //estructura que va a contener toda la lógica de navegación.
 class Router {
     //Cuando el index.php llama a run(), se aprieta el botón de "encendido" del ruteo.
