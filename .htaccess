@@ -1,0 +1,7 @@
+RewriteEngine On
+RewriteBase /AuraTerra/
+
+# Redirigir todo lo que no sea un archivo real a public/index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ public/index.php [QSA,L]
